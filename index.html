@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wallbox Status</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-main: #ffffff;
+            --text-dim: #b0b0b0;
+            --leap-color: #00d4ff;
+            --mg-color: #ff4d4d;
+            --accent-dim: #333;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg-color); color: var(--text-main); display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .container { width: 90%; max-width: 400px; }
+        .card { background: var(--card-bg); padding: 30px; border-radius: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; border: 1px solid #333; }
+        .label { font-size: 0.9rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+        .value { font-size: 4rem; font-weight: 800; }
+        .unit { font-size: 1.2rem; color: var(--text-dim); }
+        .progress-container { width: 100%; height: 6px; background: var(--accent-dim); border-radius: 3px; margin: 20px 0; overflow: hidden; }
+        .progress-bar { height: 100%; width: 0%; transition: width 0.5s ease, background 0.5s ease; }
+        .car-indicator { display: flex; gap: 10px; }
+        .car-badge { flex: 1; padding: 10px; border-radius: 12px; background: var(--accent-dim); font-size: 0.7rem; color: var(--text-dim); border: 2px solid transparent; }
+        .active-leap { color: var(--leap-color); border-color: var(--leap-color); background: rgba(0, 212, 255, 0.1); }
+        .active-mg { color: var(--mg-color); border-color: var(--mg-color); background: rgba(255, 77, 77, 0.1); }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="card">
+            <div id="status-label" class="label">Lade Daten...</div>
+            <div class="value-container">
+                <span id="power" class="value">0.0</span><span class="unit">kW</span>
+            </div>
+            <div class="progress-container"><div id="bar" class="progress-bar"></div></div>
+            <div class="car-indicator">
+                <div id="badge-leap" class="car-badge">LEAPMOTOR C10</div>
+                <div id="badge-mg" class="car-badge">MG ZS</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const HA_URL = "https://1cbgsjyyusu6ydzrcy6uaqjcj5wrbyhw.ui.nabu.casa";
+        const TOKEN = "DEIN_TOKEN_HIER"; 
+        const ENTITY = "sensor.charger_power_active_import";
+        
+        let lastUpdateTime = Date.now();
+
+        async function updateData() {
+            try {
+                const response = await fetch(`${HA_URL}/api/states/${ENTITY}`, {
+                    headers: { "Authorization": `Bearer ${TOKEN}`, "Content-Type": "application/json" }
+                });
+                const data = await response.json();
+                lastUpdateTime = Date.now();
+                updateUI(parseFloat(data.state) || 0.0);
+            } catch (error) {
+                if (Date.now() - lastUpdateTime > 10000) updateUI(0.0);
+            }
+        }
+
+        function updateUI(val) {
+            document.getElementById('power').innerText = val.toFixed(1);
+            const leap = document.getElementById('badge-leap');
+            const mg = document.getElementById('badge-mg');
+            const bar = document.getElementById('bar');
+            const lbl = document.getElementById('status-label');
+
+            if (val > 0.5) {
+                if (val > 7.0) {
+                    lbl.innerText = "Lädt: Leapmotor C10";
+                    leap.className = "car-badge active-leap";
+                    mg.className = "car-badge";
+                    bar.style.width = Math.min((val / 11 * 100), 100) + "%";
+                    bar.style.background = "var(--leap-color)";
+                } else {
+                    lbl.innerText = "Lädt: MG ZS";
+                    mg.className = "car-badge active-mg";
+                    leap.className = "car-badge";
+                    bar.style.width = Math.min((val / 6.2 * 100), 100) + "%";
+                    bar.style.background = "var(--mg-color)";
+                }
+            } else {
+                lbl.innerText = "Wallbox Standby";
+                leap.className = "car-badge";
+                mg.className = "car-badge";
+                bar.style.width = "0%";
+            }
+        }
+
+        setInterval(updateData, 5000);
+        updateData();
+    </script>
+</body>
+</html>
