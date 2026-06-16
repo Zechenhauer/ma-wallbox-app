@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wallbox Status</title>
+    <style>
+        :root { --bg: #121212; --card: #1e1e1e; --text: #fff; --leap: #00d4ff; --mg: #ff4d4d; }
+        body { font-family: sans-serif; background: var(--bg); color: var(--text); display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: var(--card); padding: 30px; border-radius: 30px; width: 90%; max-width: 400px; text-align: center; border: 1px solid #333; }
+        .value { font-size: 3rem; font-weight: 800; margin: 10px 0; }
+        .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; border-top: 1px solid #333; padding-top: 20px; font-size: 0.8rem; color: #aaa; }
+        .active-leap { color: var(--leap); }
+        .active-mg { color: var(--mg); }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div id="status">Lade Daten...</div>
+        <div class="value"><span id="power">0.0</span> <small>kW</small></div>
+        <div class="stats">
+            <div>Leap (Monat):<br><span id="stat-leap-monat">0.0</span> kWh</div>
+            <div>MG (Monat):<br><span id="stat-mg-monat">0.0</span> kWh</div>
+        </div>
+    </div>
+
+    <script>
+        const HA_URL = "https://1cbgsjyyusu6ydzrcy6uaqjcj5wrbyhw.ui.nabu.casa";
+        const TOKEN = "DEIN_TOKEN_HIER"; 
+
+        async function updateData() {
+            try {
+                const response = await fetch(`${HA_URL}/api/states`, {
+                    headers: { "Authorization": `Bearer ${TOKEN}`, "Content-Type": "application/json" }
+                });
+                const states = await response.json();
+                
+                const getVal = (id) => states.find(s => s.entity_id === id)?.state || "0";
+                
+                // Werte abrufen
+                const power = parseFloat(getVal("sensor.charger_power_active_import")) || 0;
+                const leapMonat = getVal("sensor.leapmotor_monats_verbrauch");
+                const mgMonat = getVal("sensor.mg_zs_monats_verbrauch");
+
+                // Anzeigen aktualisieren
+                document.getElementById('power').innerText = power.toFixed(1);
+                document.getElementById('stat-leap-monat').innerText = (leapMonat === "unknown" || leapMonat === "unavailable") ? "0.0" : parseFloat(leapMonat).toFixed(1);
+                document.getElementById('stat-mg-monat').innerText = (mgMonat === "unknown" || mgMonat === "unavailable") ? "0.0" : parseFloat(mgMonat).toFixed(1);
+
+                // Status Text & Farbe
+                const statusEl = document.getElementById('status');
+                if (power > 7.0) {
+                    statusEl.innerText = "Lädt: Leapmotor C10";
+                    statusEl.className = "active-leap";
+                } else if (power > 0.5) {
+                    statusEl.innerText = "Lädt: MG ZS";
+                    statusEl.className = "active-mg";
+                } else {
+                    statusEl.innerText = "Wallbox Standby";
+                    statusEl.className = "";
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        setInterval(updateData, 5000);
+        updateData();
+    </script>
+</body>
+</html>
