@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meine Wallbox App</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; background: #f4f4f9; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin: 10px auto; max-width: 300px; }
+        h1 { font-size: 1.2em; color: #333; }
+        .value { font-size: 2em; font-weight: bold; color: #007bff; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1>Wallbox Leistung</h1>
+        <div id="power" class="value">Lädt...</div>
+        <div>kW</div>
+    </div>
+
+    <script>
+        // Deine Konfiguration
+        const HA_URL = "https://1cbgsjyyusu6ydzrcy6uaqjcj5wrbyhw.ui.nabu.casa";
+        const TOKEN = "HIER_DEIN_NEUES_TOKEN_EINFUEGEN";
+        const ENTITY = "sensor.charger_power_active_import";
+
+        async function updateData() {
+            try {
+                const response = await fetch(`${HA_URL}/api/states/${ENTITY}`, {
+                    headers: { 
+                        "Authorization": `Bearer ${TOKEN}`, 
+                        "Content-Type": "application/json" 
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('API Fehler: ' + response.status);
+                }
+                
+                const data = await response.json();
+                document.getElementById('power').innerText = data.state;
+            } catch (error) {
+                console.error("Fehler beim Abruf:", error);
+                document.getElementById('power').innerText = "Fehler";
+            }
+        }
+
+        // Alle 5 Sekunden aktualisieren
+        setInterval(updateData, 5000);
+        updateData();
+    </script>
+</body>
+</html>
